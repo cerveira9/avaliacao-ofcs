@@ -10,8 +10,33 @@ router.post('/cadastroOficial', async (req, res) => {
 });
 
 router.get('/mostrarOficiais', async (req, res) => {
+  const hierarchy = [
+    'Cadete',
+    'Patrol Officer',
+    'Police Officer',
+    'Senior Officer',
+    'Deputy',
+    'Senior Deputy',
+    'Undersheriff / Deputy Chief',
+    'Sheriff / Chief of Police',
+    'Forest Ranger',
+    'Tracker Ranger',
+    'Senior Ranger',
+    'Captain Ranger',
+    'Commissioner',
+    'Deputy Marshal',
+    'Marshal'
+  ];
+
   const officers = await Officer.find();
-  res.json(officers);
+
+  const ordered = officers.sort((a, b) => {
+    const rankA = hierarchy.indexOf(a.rank);
+    const rankB = hierarchy.indexOf(b.rank);
+    return rankA - rankB;
+  });
+
+  res.json(ordered);
 });
 
 router.put('/atualizarOficial/:id', async (req, res) => {
