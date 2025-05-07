@@ -47,3 +47,30 @@ exports.register = async (req, res) => {
     res.status(500).json({ error: 'Erro no registro do usuário.' });
   }
 };
+
+exports.changePassword = async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+  const userId = req.user.id;
+
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({ error: 'Preencha todos os campos.' });
+  }
+
+  try {
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ error: 'Usuário não encontrado.' });
+
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) return res.status(401).json({ error: 'Senha atual incorreta.' });
+
+    const hashed = await bcrypt.hash(newPassword, 10);
+    user.password = hashed;
+    await user.save();
+
+    res.json({ message: 'Senha alterada com sucesso.' });
+  } catch (err) {
+    console.error('[ERRO ALTERAR SENHA]', err.message);
+    res.status(500).json({ error: 'Erro ao alterar a senha.' });
+  }
+};
+
