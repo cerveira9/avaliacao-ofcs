@@ -21,15 +21,29 @@ exports.login = async (req, res) => {
 };
 
 exports.register = async (req, res) => {
-  const { username, password, role } = req.body;
+  const { username, password, officerName, role } = req.body;
 
-  const hashed = await bcrypt.hash(password, 10);
-  const user = new User({ username, password: hashed, role });
+  if (!username || !password || !officerName || !role) {
+    return res.status(400).json({ error: 'Todos os campos são obrigatórios.' });
+  }
 
   try {
-    await user.save();
-    res.status(201).json({ message: 'Usuário criado com sucesso' });
+    const existingUser = await User.findOne({ username });
+    if (existingUser) return res.status(400).json({ error: 'Usuário já existe.' });
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const newUser = new User({
+      username,
+      password: hashedPassword,
+      officerName,
+      role
+    });
+
+    await newUser.save();
+    res.status(201).json({ message: 'Usuário registrado com sucesso.' });
   } catch (err) {
-    res.status(400).json({ error: 'Erro ao criar usuário' });
+    console.error('[ERRO REGISTER]', err.message);
+    res.status(500).json({ error: 'Erro no registro do usuário.' });
   }
 };
