@@ -21,9 +21,11 @@ async function connectDB() {
 
 const officerRoutes = require('./routes/officers');
 const evaluationRoutes = require('./routes/evaluations');
+const authRoutes = require('./routes/authRoutes');
 
 app.use('/v1/api/officers', officerRoutes);
 app.use('/v1/api/evaluations', evaluationRoutes);
+app.use('/v1/api/auth', authRoutes);
 
 const PORT = 5000;
 app.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT}`));
