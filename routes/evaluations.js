@@ -3,6 +3,7 @@ const router = express.Router();
 const Evaluation = require("../models/Evaluation");
 const Officer = require("../models/Officer");
 const { authenticateToken } = require("../middleware/authMiddleware");
+const logAction = require("../utils/logAction");
 
 router.post("/cadastrarAvaliacao", authenticateToken, async (req, res) => {
 	const { officerId, skills } = req.body;
@@ -20,6 +21,15 @@ router.post("/cadastrarAvaliacao", authenticateToken, async (req, res) => {
 		});
 
 		await newEval.save();
+
+		await logAction({
+			req,
+			action: "create",
+			user: req.user, // vindo do middleware authenticateToken
+			target: { entity: "Evaluation", id: newEval._id },
+			metadata: { score: skills },
+		});
+
 		res.json(newEval);
 	} catch (err) {
 		console.error("[ERRO AVALIAÇÃO]", err.message);
