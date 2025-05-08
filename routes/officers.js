@@ -76,4 +76,45 @@ router.delete('/deletarOficial/:id', async (req, res) => {
   }
 });
 
+router.put('/promoverOficial/:id', async (req, res) => {
+  const { id } = req.params;
+
+  const hierarchy = [
+    'Cadete',
+    'Patrol Officer',
+    'Police Officer',
+    'Senior Officer',
+    'Deputy',
+    'Senior Deputy',
+    'Undersheriff / Deputy Chief',
+    'Sheriff / Chief of Police',
+    'Forest Ranger',
+    'Tracker Ranger',
+    'Senior Ranger',
+    'Captain Ranger',
+    'Commissioner',
+    'Deputy Marshal',
+    'Marshal'
+  ];
+
+  try {
+    const officer = await Officer.findById(id);
+    if (!officer) return res.status(404).json({ error: 'Oficial não encontrado' });
+
+    const currentRankIndex = hierarchy.indexOf(officer.rank);
+    if (currentRankIndex === -1 || currentRankIndex === hierarchy.length - 1) {
+      return res.status(400).json({ error: 'Oficial já está na patente mais alta' });
+    }
+
+    officer.rank = hierarchy[currentRankIndex + 1];
+    await officer.save();
+
+    res.json({ message: 'Promoção realizada com sucesso', newRank: officer.rank });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Erro ao promover oficial' });
+  }
+});
+
+
 module.exports = router;
