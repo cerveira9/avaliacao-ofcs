@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const getCollectionName = require('../utils/collectionName');
 
 const evaluationSchema = new mongoose.Schema({
 	officer: { type: mongoose.Schema.Types.ObjectId, ref: "Officer" },
@@ -16,4 +17,4 @@ const evaluationSchema = new mongoose.Schema({
 	date: { type: Date, default: Date.now },
 });
 
-module.exports = mongoose.model("Evaluation", evaluationSchema);
+module.exports = mongoose.model("Evaluation", evaluationSchema, getCollectionName('Evaluation'));
