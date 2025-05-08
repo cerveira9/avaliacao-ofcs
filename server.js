@@ -24,12 +24,14 @@ const evaluationRoutes = require('./routes/evaluations');
 const authRoutes = require('./routes/authRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
 const auditRoutes = require('./routes/auditRoutes');
+const usuariosRoutes = require('./routes/usuariosRoutes');
 
 app.use('/v1/api/officers', officerRoutes);
 app.use('/v1/api/evaluations', evaluationRoutes);
 app.use('/v1/api/auth', authRoutes);
 app.use('/v1/api/dashboard', dashboardRoutes);
 app.use('/v1/api/audit', auditRoutes);
+app.use('/v1/api/users', usuariosRoutes);
 
 const PORT = 5000;
 app.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT}`));
