@@ -92,7 +92,7 @@ router.put("/atualizarOficial/:id", authenticateToken, async (req, res) => {
 				action: "update",
 				user: req.user,
 				target: { entity: "Officer", id: updatedOfficer._id },
-				metadata: { changes },
+				metadata: { changes, name },
 			});
 		}
 
@@ -117,7 +117,7 @@ router.delete("/deletarOficial/:id", authenticateToken, async (req, res) => {
 			req,
 			action: "delete",
 			user: req.user,
-			target: { entity: "Officer", id: deletedOfficer._id },
+			target: { entity: "Officer", id },
 			metadata: {
 				name: deletedOfficer.name,
 				rank: deletedOfficer.rank,
@@ -176,6 +176,7 @@ router.put("/promoverOficial/:id", authenticateToken, async (req, res) => {
 			metadata: {
 				oldRank,
 				newRank: officer.rank,
+				name: officer.name,
 			},
 		});
 
