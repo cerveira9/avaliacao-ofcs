@@ -51,14 +51,21 @@ router.get("/analytics/:officerId", authenticateToken, async (req, res) => {
 				totalEvaluations: 0,
 				ranks: [],
 				averageSkills: {},
+				evaluationsByRank: {},
 			});
 		}
 
 		const groupedByRank = {};
+		const evaluationsByRank = {};
+
 		for (const eval of evaluations) {
 			const rank = eval.rankAtEvaluation || "Desconhecido";
-			if (!groupedByRank[rank]) groupedByRank[rank] = [];
+			if (!groupedByRank[rank]) {
+				groupedByRank[rank] = [];
+				evaluationsByRank[rank] = 0;
+			}
 			groupedByRank[rank].push(eval.skills);
+			evaluationsByRank[rank]++;
 		}
 
 		const average = (data) => {
@@ -77,6 +84,7 @@ router.get("/analytics/:officerId", authenticateToken, async (req, res) => {
 			officerId,
 			totalEvaluations: evaluations.length,
 			ranks: Object.keys(groupedByRank),
+			evaluationsByRank,
 			averageSkills: {
 				geral: average(evaluations.map((e) => e.skills)),
 			},
