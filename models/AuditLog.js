@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const getCollectionName = require('../utils/collectionName');
 
 const auditLogSchema = new mongoose.Schema({
   action: { type: String, required: true }, // 'create', 'update', 'delete', etc.
@@ -19,4 +20,4 @@ const auditLogSchema = new mongoose.Schema({
   timestamp: { type: Date, default: Date.now }
 });
 
-module.exports = mongoose.model('AuditLog', auditLogSchema);
+module.exports = mongoose.model('AuditLog', auditLogSchema, getCollectionName('AuditLog'));

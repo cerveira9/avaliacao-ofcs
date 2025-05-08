@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const getCollectionName = require('../utils/collectionName');
 
 const officerSchema = new mongoose.Schema({
 	name: String,
@@ -26,4 +27,4 @@ const officerSchema = new mongoose.Schema({
 	registerDate: { type: Date, default: Date.now },
 });
 
-module.exports = mongoose.model("Officer", officerSchema);
+module.exports = mongoose.model('Officer', officerSchema, getCollectionName('Officer'));
