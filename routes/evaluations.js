@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const Evaluation = require("../models/Evaluation");
 const Officer = require("../models/Officer");
-const { authenticateToken } = require("../middleware/authMiddleware");
+const { authenticateToken, requireAdmin } = require("../middleware/authMiddleware");
 const logAction = require("../utils/logAction");
 
 router.post("/cadastrarAvaliacao", authenticateToken, async (req, res) => {
@@ -46,6 +46,37 @@ router.get("/:officerId", async (req, res) => {
 		.sort({ date: -1 });
 
 	res.json(evaluations);
+});
+
+router.delete("/deletarAvaliacao/:id", authenticateToken, requireAdmin, async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        const evaluation = await Evaluation.findById(id).populate("officer evaluator");
+        if (!evaluation) {
+            return res.status(404).json({ error: "Avaliação não encontrada." });
+        }
+
+        // Substituir evaluation.remove() por deleteOne
+        await Evaluation.deleteOne({ _id: id });
+
+        await logAction({
+            req,
+            action: "delete",
+            user: req.user,
+            target: { entity: "Evaluation", id: evaluation._id },
+            metadata: {
+                officerName: evaluation.officer?.name || "Desconhecido",
+                scores: evaluation.skills || {},
+                evaluator: evaluation.evaluator?.officerName || "Desconhecido",
+            },
+        });
+
+        res.json({ message: "Avaliação deletada com sucesso." });
+    } catch (err) {
+        console.error("[ERRO AVALIAÇÃO]", err.message);
+        res.status(500).json({ error: "Erro ao deletar avaliação." });
+    }
 });
 
 module.exports = router;
