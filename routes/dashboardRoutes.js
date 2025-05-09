@@ -58,13 +58,13 @@ router.get("/analytics/:officerId", authenticateToken, async (req, res) => {
 		const groupedByRank = {};
 		const evaluationsByRank = {};
 
-		for (const eval of evaluations) {
-			const rank = eval.rankAtEvaluation || "Desconhecido";
+		for (const evaluation of evaluations) {
+			const rank = evaluation.rankAtEvaluation || "Desconhecido";
 			if (!groupedByRank[rank]) {
 				groupedByRank[rank] = [];
 				evaluationsByRank[rank] = 0;
 			}
-			groupedByRank[rank].push(eval.skills);
+			groupedByRank[rank].push(evaluation.skills);
 			evaluationsByRank[rank]++;
 		}
 

@@ -33,5 +33,11 @@ app.use('/v1/api/dashboard', dashboardRoutes);
 app.use('/v1/api/audit', auditRoutes);
 app.use('/v1/api/users', usuariosRoutes);
 
+app.get("/", (req, res) => {
+  res.status(200).send("Servidor funcionando!");
+});
+
 const PORT = 5000;
 app.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT}`));
+
+module.exports = app; // Exporte o app para ser usado nos testes
