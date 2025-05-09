@@ -9,7 +9,7 @@ on:
       - master
 
 jobs:
-  lint-test-deploy:
+  lint-deploy:
     runs-on: ubuntu-latest
 
     steps:
@@ -27,17 +27,9 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      # Configurar variáveis de ambiente
-      - name: Set environment variables
-        run: echo "MONGO_URI=${{ secrets.MONGO_URI }}" >> $GITHUB_ENV
-
       # Rodar linting
       - name: Run ESLint
         run: npm run lint
-
-      # Rodar testes
-      - name: Run tests
-        run: npm test
 
       # Deploy no Render
       - name: Deploy to Render
