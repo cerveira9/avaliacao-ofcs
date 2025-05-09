@@ -1,0 +1,47 @@
+name: Backend CI/CD
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  lint-test-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checkout do código
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # Configurar Node.js
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      # Instalar dependências
+      - name: Install dependencies
+        run: npm install
+
+      # Rodar linting
+      - name: Run ESLint
+        run: npm run lint
+
+      # Rodar testes
+      - name: Run tests
+        run: npm test
+
+      # Deploy no Render
+      - name: Deploy to Render
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+        run: |
+          curl -X POST \
+            -H "Authorization: Bearer $RENDER_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d '{"serviceId": "srv-d0dpbbmuk2gs738tud6g"}' \
+            https://api.render.com/v1/services/srv-d0dpbbmuk2gs738tud6g/deploys
