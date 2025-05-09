@@ -3,10 +3,11 @@ name: Backend CI/CD
 on:
   push:
     branches:
-      - master
+      - master # Aciona o workflow apenas em push na branch master
   pull_request:
     branches:
-      - master
+      - develop # Executa o workflow em PRs para develop
+      - master  # Executa o workflow em PRs para master
 
 jobs:
   lint-deploy:
@@ -31,8 +32,9 @@ jobs:
       - name: Run ESLint
         run: npm run lint
 
-      # Deploy no Render
+      # Deploy no Render (apenas na branch master)
       - name: Deploy to Render
+        if: github.ref == 'refs/heads/master' # Garante que o deploy só acontece na branch master
         env:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
         run: |
