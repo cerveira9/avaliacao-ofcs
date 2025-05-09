@@ -40,4 +40,4 @@ app.get("/", (req, res) => {
 const PORT = 5000;
 app.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT}`));
 
-module.exports = app; // Exporte o app para ser usado nos testes
+module.exports = app;
