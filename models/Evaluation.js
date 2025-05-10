@@ -15,6 +15,6 @@ const evaluationSchema = new mongoose.Schema({
 		conhecimentoLeis: Number,
 	},
 	date: { type: Date, default: Date.now },
-});
+}, { timestamps: true });
 
 module.exports = mongoose.model("Evaluation", evaluationSchema, getCollectionName('Evaluation'));
