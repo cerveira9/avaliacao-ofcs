@@ -50,6 +50,28 @@ router.get("/mostrarOficiais", async (req, res) => {
 	res.json(ordered);
 });
 
+router.get("/promocoesRecentes", async (req, res) => {
+	try {
+		// Busca os oficiais ordenados pela data de promoção mais recente
+		const recentPromotions = await Officer.find({ promotedAt: { $ne: null } }) // Filtra apenas oficiais que foram promovidos
+			.sort({ promotedAt: -1 }) // Ordena pela data de promoção mais recente
+			.limit(10) // Limita a 10 resultados
+			.select("name rank promotedAt"); // Seleciona os campos necessários
+
+		// Formata os dados para a resposta
+		const formattedPromotions = recentPromotions.map((officer) => ({
+			name: officer.name,
+			newRank: officer.rank,
+			promotedAt: officer.promotedAt,
+		}));
+
+		res.status(200).json(formattedPromotions);
+	} catch (error) {
+		console.error("Erro ao buscar promoções recentes:", error);
+		res.status(500).json({ error: "Erro ao buscar promoções recentes" });
+	}
+});
+
 router.put("/atualizarOficial/:id", authenticateToken, async (req, res) => {
 	const { id } = req.params;
 	const { name, rank, startDate } = req.body;
@@ -98,7 +120,7 @@ router.put("/atualizarOficial/:id", authenticateToken, async (req, res) => {
 
 		res.json(updatedOfficer);
 	} catch (error) {
-		console.error("[UPDATE ERROR]", error);
+		console.error("[UPDATE ERROR] - /atualizarOficial/:id", error);
 		res.status(500).json({ error: "Erro ao atualizar o oficial" });
 	}
 });
@@ -127,6 +149,7 @@ router.delete("/deletarOficial/:id", authenticateToken, async (req, res) => {
 
 		res.json({ message: "Oficial deletado com sucesso" });
 	} catch (error) {
+		console.error("[DELETE ERROR] - /deletarOficial/:id", error);
 		res.status(500).json({ error: "Erro ao deletar o oficial" });
 	}
 });
@@ -166,6 +189,7 @@ router.put("/promoverOficial/:id", authenticateToken, async (req, res) => {
 
 		const oldRank = officer.rank;
 		officer.rank = hierarchy[currentRankIndex + 1];
+		officer.promotedAt = new Date();
 		await officer.save();
 
 		await logAction({
@@ -177,6 +201,7 @@ router.put("/promoverOficial/:id", authenticateToken, async (req, res) => {
 				oldRank,
 				newRank: officer.rank,
 				name: officer.name,
+				promotedAt: officer.promotedAt,
 			},
 		});
 
@@ -185,8 +210,18 @@ router.put("/promoverOficial/:id", authenticateToken, async (req, res) => {
 			newRank: officer.rank,
 		});
 	} catch (error) {
-		console.error(error);
+		console.error("[PROMOTE ERROR] - /promoverOficial/:id", error);
 		res.status(500).json({ error: "Erro ao promover oficial" });
+	}
+});
+
+router.get("/totalOficiais", async (req, res) => {
+	try {
+		const total = await Officer.countDocuments();
+		res.status(200).json({ total });
+	} catch (error) {
+		console.error("[ERROR] - /totalOficiais", error);
+		res.status(500).json({ error: "Erro ao buscar total de oficiais" });
 	}
 });
 
