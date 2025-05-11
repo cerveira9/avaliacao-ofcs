@@ -1,24 +1,36 @@
 const express = require("express");
 const router = express.Router();
 const Officer = require("../models/Officer");
+const validate = require("../middleware/validate");
+const officerSchema = require("../schemas/officerSchema");
 const { authenticateToken } = require("../middleware/authMiddleware");
 const logAction = require("../utils/logAction");
 
-router.post("/cadastroOficial", authenticateToken, async (req, res) => {
-	const { name, rank, startDate } = req.body;
-	const newOfficer = new Officer({ name, rank, startDate });
-	await newOfficer.save();
+router.post(
+	"/cadastroOficial",
+	authenticateToken,
+	validate(officerSchema),
+	async (req, res) => {
+		const { name, rank, startDate } = req.body;
+		try {
+			const newOfficer = new Officer({ name, rank, startDate });
+			await newOfficer.save();
 
-	await logAction({
-		req,
-		action: "create",
-		user: req.user, // vindo do middleware authenticateToken
-		target: { entity: "Officer", id: newOfficer._id },
-		metadata: { name, rank },
-	});
+			await logAction({
+				req,
+				action: "create",
+				user: req.user,
+				target: { entity: "Officer", id: newOfficer._id },
+				metadata: { name, rank },
+			});
 
-	res.json(newOfficer);
-});
+			res.status(201).json(newOfficer);
+		} catch (error) {
+			console.error("[ERRO CADASTRO OFICIAL] - /cadastroOficial", error.message);
+			res.status(500).json({ error: "Erro ao cadastrar oficial." });
+		}
+	}
+);
 
 router.get("/mostrarOficiais", async (req, res) => {
 	const hierarchy = [

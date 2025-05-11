@@ -2,13 +2,15 @@ const express = require("express");
 const router = express.Router();
 const Evaluation = require("../models/Evaluation");
 const Officer = require("../models/Officer");
+const validate = require("../middleware/validate");
+const evaluationSchema = require("../schemas/evaluationSchema");
 const {
 	authenticateToken,
 	requireAdmin,
 } = require("../middleware/authMiddleware");
 const logAction = require("../utils/logAction");
 
-router.post("/cadastrarAvaliacao", authenticateToken, async (req, res) => {
+router.post("/cadastrarAvaliacao", authenticateToken, validate(evaluationSchema), async (req, res) => {
 	const { officerId, skills } = req.body;
 
 	try {
@@ -28,7 +30,7 @@ router.post("/cadastrarAvaliacao", authenticateToken, async (req, res) => {
 		await logAction({
 			req,
 			action: "create",
-			user: req.user, // vindo do middleware authenticateToken
+			user: req.user,
 			target: { entity: "Evaluation", id: newEval.officer },
 			metadata: {
 				officerName: officer.name,
@@ -36,55 +38,52 @@ router.post("/cadastrarAvaliacao", authenticateToken, async (req, res) => {
 			},
 		});
 
-		res.json(newEval);
+		res.status(201).json(newEval);
 	} catch (err) {
-		console.error("[ERRO AVALIAÇÃO] - /cadastrarAvaliacao", err.message);
+		console.error("[ERRO CADASTRO AVALIAÇÃO] - /cadastrarAvaliacao", err.message);
 		res.status(500).json({ error: "Erro ao salvar avaliação." });
 	}
 });
 
-router.get(
-	"/oficiaisAvaliadosRecentes",
-	async (req, res) => {
-		try {
-			const evaluations = await Evaluation.find()
-				.sort({ date: -1 }) // Ordena pela data mais recente
-				.limit(10)
-				.populate({
-					path: "officer",
-					select: "name rank", // Seleciona apenas os campos necessários
-				})
-				.populate({
-					path: "evaluator",
-					select: "officerName", // Seleciona apenas o nome do avaliador
-				});
+router.get("/oficiaisAvaliadosRecentes", async (req, res) => {
+	try {
+		const evaluations = await Evaluation.find()
+			.sort({ date: -1 }) // Ordena pela data mais recente
+			.limit(10)
+			.populate({
+				path: "officer",
+				select: "name rank", // Seleciona apenas os campos necessários
+			})
+			.populate({
+				path: "evaluator",
+				select: "officerName", // Seleciona apenas o nome do avaliador
+			});
 
-			// Verifica se os dados foram populados corretamente
-			const recentEvaluatedOfficers = evaluations
-				.map((evaluation) => {
-					if (!evaluation.officer || !evaluation.evaluator) {
-						console.error(
-							`Erro: Avaliação com ID ${evaluation._id} possui dados incompletos.`
-						);
-						return null;
-					}
+		// Verifica se os dados foram populados corretamente
+		const recentEvaluatedOfficers = evaluations
+			.map((evaluation) => {
+				if (!evaluation.officer || !evaluation.evaluator) {
+					console.error(
+						`Erro: Avaliação com ID ${evaluation._id} possui dados incompletos.`
+					);
+					return null;
+				}
 
-					return {
-						name: evaluation.officer.name,
-						rank: evaluation.officer.rank,
-						date: evaluation.date,
-						evaluator: evaluation.evaluator.officerName,
-					};
-				})
-				.filter(Boolean); // Remove avaliações com dados incompletos
+				return {
+					name: evaluation.officer.name,
+					rank: evaluation.officer.rank,
+					date: evaluation.date,
+					evaluator: evaluation.evaluator.officerName,
+				};
+			})
+			.filter(Boolean); // Remove avaliações com dados incompletos
 
-			res.status(200).json(recentEvaluatedOfficers);
-		} catch (err) {
-			console.error("[ERRO AVALIAÇÃO - ]", err.message);
-			res.status(500).json({ error: "Erro ao buscar oficiais avaliados." });
-		}
+		res.status(200).json(recentEvaluatedOfficers);
+	} catch (err) {
+		console.error("[ERRO AVALIAÇÃO - ]", err.message);
+		res.status(500).json({ error: "Erro ao buscar oficiais avaliados." });
 	}
-);
+});
 
 router.get("/:officerId", async (req, res) => {
 	const evaluations = await Evaluation.find({ officer: req.params.officerId })
