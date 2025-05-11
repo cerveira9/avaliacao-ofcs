@@ -2,21 +2,22 @@ const User = require("../models/User");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const logAction = require("../utils/logAction");
+const logger = require("../utils/logger"); // Assuming you have a logger utility
 
 exports.login = async (req, res) => {
-	console.log("[LOGIN] Login attempt started");
+	logger.info("[LOGIN] Login attempt started");
 	const { username, password } = req.body;
 
 	try {
 		const user = await User.findOne({ username });
 		if (!user) {
-			console.log("[LOGIN] User not found:", username);
+			logger.warn("[LOGIN] User not found:", username);
 			return res.status(401).json({ error: "Usuário não encontrado" });
 		}
 
 		const valid = await bcrypt.compare(password, user.password);
 		if (!valid) {
-			console.log("[LOGIN] Incorrect password for user:", username);
+			logger.warn("[LOGIN] Incorrect password for user:", username);
 			return res.status(401).json({ error: "Senha incorreta" });
 		}
 
@@ -34,27 +35,27 @@ exports.login = async (req, res) => {
 			metadata: { username },
 		});
 
-		console.log("[LOGIN] Login successful for user:", username);
+		logger.info("[LOGIN] Login successful for user:", username);
 		res.json({ token, role: user.role });
 	} catch (err) {
-		console.error("[LOGIN ERROR]", err.message);
+		logger.error("[LOGIN ERROR]", err.message);
 		res.status(500).json({ error: "Erro no login." });
 	}
 };
 
 exports.register = async (req, res) => {
-	console.log("[REGISTER] Registration attempt started");
+	logger.info("[REGISTER] Registration attempt started");
 	const { username, password, officerName, role } = req.body;
 
 	if (!username || !password || !officerName || !role) {
-		console.log("[REGISTER] Missing required fields");
+		logger.warn("[REGISTER] Missing required fields");
 		return res.status(400).json({ error: "Todos os campos são obrigatórios." });
 	}
 
 	try {
 		const existingUser = await User.findOne({ username });
 		if (existingUser) {
-			console.log("[REGISTER] User already exists:", username);
+			logger.warn("[REGISTER] User already exists:", username);
 			return res.status(400).json({ error: "Usuário já existe." });
 		}
 
@@ -77,34 +78,34 @@ exports.register = async (req, res) => {
 			metadata: { username, officerName, role },
 		});
 
-		console.log("[REGISTER] User registered successfully:", username);
+		logger.info("[REGISTER] User registered successfully:", username);
 		res.status(201).json({ message: "Usuário registrado com sucesso." });
 	} catch (err) {
-		console.error("[REGISTER ERROR]", err.message);
+		logger.error("[REGISTER ERROR]", err.message);
 		res.status(500).json({ error: "Erro no registro do usuário." });
 	}
 };
 
 exports.changePassword = async (req, res) => {
-	console.log("[CHANGE PASSWORD] Password change attempt started");
+	logger.info("[CHANGE PASSWORD] Password change attempt started");
 	const { currentPassword, newPassword } = req.body;
 	const userId = req.user.id;
 
 	if (!currentPassword || !newPassword) {
-		console.log("[CHANGE PASSWORD] Missing required fields");
+		logger.warn("[CHANGE PASSWORD] Missing required fields");
 		return res.status(400).json({ error: "Preencha todos os campos." });
 	}
 
 	try {
 		const user = await User.findById(userId);
 		if (!user) {
-			console.log("[CHANGE PASSWORD] User not found:", userId);
+			logger.warn("[CHANGE PASSWORD] User not found:", userId);
 			return res.status(404).json({ error: "Usuário não encontrado." });
 		}
 
 		const isMatch = await bcrypt.compare(currentPassword, user.password);
 		if (!isMatch) {
-			console.log("[CHANGE PASSWORD] Incorrect current password for user:", userId);
+			logger.warn("[CHANGE PASSWORD] Incorrect current password for user:", userId);
 			return res.status(401).json({ error: "Senha atual incorreta." });
 		}
 
@@ -119,10 +120,10 @@ exports.changePassword = async (req, res) => {
 			target: { entity: "User", id: user._id },
 		});
 
-		console.log("[CHANGE PASSWORD] Password changed successfully for user:", userId);
+		logger.info("[CHANGE PASSWORD] Password changed successfully for user:", userId);
 		res.json({ message: "Senha alterada com sucesso." });
 	} catch (err) {
-		console.error("[CHANGE PASSWORD ERROR]", err.message);
+		logger.error("[CHANGE PASSWORD ERROR]", err.message);
 		res.status(500).json({ error: "Erro ao alterar a senha." });
 	}
 };
