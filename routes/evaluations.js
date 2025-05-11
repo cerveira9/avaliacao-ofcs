@@ -13,11 +13,16 @@ const logAction = require("../utils/logAction");
 router.post("/cadastrarAvaliacao", authenticateToken, validate(evaluationSchema), async (req, res) => {
 	const { officerId, skills } = req.body;
 
+	console.info("[INFO] - Iniciando cadastro de avaliação.");
 	try {
+		console.debug(`[DEBUG] - Buscando oficial com ID ${officerId}.`);
 		const officer = await Officer.findById(officerId);
-		if (!officer)
+		if (!officer) {
+			console.warn(`[WARN] - Oficial com ID ${officerId} não encontrado.`);
 			return res.status(404).json({ error: "Oficial não encontrado." });
+		}
 
+		console.debug("[DEBUG] - Criando nova avaliação.");
 		const newEval = new Evaluation({
 			officer: officerId,
 			evaluator: req.user.id,
@@ -26,6 +31,7 @@ router.post("/cadastrarAvaliacao", authenticateToken, validate(evaluationSchema)
 		});
 
 		await newEval.save();
+		console.info(`[INFO] - Avaliação criada com sucesso. ID: ${newEval._id}`);
 
 		await logAction({
 			req,
@@ -46,25 +52,26 @@ router.post("/cadastrarAvaliacao", authenticateToken, validate(evaluationSchema)
 });
 
 router.get("/oficiaisAvaliadosRecentes", async (req, res) => {
+	console.info("[INFO] - Buscando oficiais avaliados recentemente.");
 	try {
 		const evaluations = await Evaluation.find()
-			.sort({ date: -1 }) // Ordena pela data mais recente
+			.sort({ date: -1 })
 			.limit(10)
 			.populate({
 				path: "officer",
-				select: "name rank", // Seleciona apenas os campos necessários
+				select: "name rank",
 			})
 			.populate({
 				path: "evaluator",
-				select: "officerName", // Seleciona apenas o nome do avaliador
+				select: "officerName",
 			});
 
-		// Verifica se os dados foram populados corretamente
+		console.debug("[DEBUG] - Processando avaliações recentes.");
 		const recentEvaluatedOfficers = evaluations
 			.map((evaluation) => {
 				if (!evaluation.officer || !evaluation.evaluator) {
 					console.error(
-						`Erro: Avaliação com ID ${evaluation._id} possui dados incompletos.`
+						`[ERROR] - Avaliação com ID ${evaluation._id} possui dados incompletos.`
 					);
 					return null;
 				}
@@ -76,21 +83,30 @@ router.get("/oficiaisAvaliadosRecentes", async (req, res) => {
 					evaluator: evaluation.evaluator.officerName,
 				};
 			})
-			.filter(Boolean); // Remove avaliações com dados incompletos
+			.filter(Boolean);
 
+		console.info("[INFO] - Oficiais avaliados recentemente obtidos com sucesso.");
 		res.status(200).json(recentEvaluatedOfficers);
 	} catch (err) {
-		console.error("[ERRO AVALIAÇÃO - ]", err.message);
+		console.error("[ERRO AVALIAÇÃO - /oficiaisAvaliadosRecentes]", err.message);
 		res.status(500).json({ error: "Erro ao buscar oficiais avaliados." });
 	}
 });
 
 router.get("/:officerId", async (req, res) => {
-	const evaluations = await Evaluation.find({ officer: req.params.officerId })
-		.populate("evaluator", "officerName")
-		.sort({ date: -1 });
+	const { officerId } = req.params;
+	console.info(`[INFO] - Buscando avaliações para o oficial com ID ${officerId}.`);
+	try {
+		const evaluations = await Evaluation.find({ officer: officerId })
+			.populate("evaluator", "officerName")
+			.sort({ date: -1 });
 
-	res.json(evaluations);
+		console.info(`[INFO] - Avaliações para o oficial ${officerId} obtidas com sucesso.`);
+		res.json(evaluations);
+	} catch (err) {
+		console.error(`[ERRO AVALIAÇÃO - /:officerId]`, err.message);
+		res.status(500).json({ error: "Erro ao buscar avaliações do oficial." });
+	}
 });
 
 router.delete(
@@ -100,15 +116,17 @@ router.delete(
 	async (req, res) => {
 		const { id } = req.params;
 
+		console.info(`[INFO] - Iniciando exclusão da avaliação com ID ${id}.`);
 		try {
 			const evaluation = await Evaluation.findById(id).populate(
 				"officer evaluator"
 			);
 			if (!evaluation) {
+				console.warn(`[WARN] - Avaliação com ID ${id} não encontrada.`);
 				return res.status(404).json({ error: "Avaliação não encontrada." });
 			}
 
-			// Substituir evaluation.remove() por deleteOne
+			console.debug("[DEBUG] - Excluindo avaliação.");
 			await Evaluation.deleteOne({ _id: id });
 
 			await logAction({
@@ -123,6 +141,7 @@ router.delete(
 				},
 			});
 
+			console.info(`[INFO] - Avaliação com ID ${id} deletada com sucesso.`);
 			res.json({ message: "Avaliação deletada com sucesso." });
 		} catch (err) {
 			console.error("[ERRO AVALIAÇÃO - /deletarAvaliacao/:id]", err.message);
