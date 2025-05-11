@@ -105,7 +105,6 @@ router.post(
  *         description: Erro ao buscar oficiais
  */
 router.get("/mostrarOficiais", async (req, res) => {
-	logger.info(`[MOSTRAR OFICIAIS] - /mostrarOficiais - Requisição recebida`);
 	const hierarchy = [
 		"Cadete",
 		"Patrol Officer",
@@ -125,7 +124,6 @@ router.get("/mostrarOficiais", async (req, res) => {
 	];
 
 	try {
-		logger.info(`[MOSTRAR OFICIAIS] - /mostrarOficiais - Buscando oficiais`);
 		const officers = await Officer.find();
 
 		const ordered = officers.sort((a, b) => {
@@ -134,9 +132,6 @@ router.get("/mostrarOficiais", async (req, res) => {
 			return rankA - rankB;
 		});
 
-		logger.info(
-			`[MOSTRAR OFICIAIS] - /mostrarOficiais - ${ordered.length} oficiais encontrados`
-		);
 		res.status(200).json(ordered);
 	} catch (error) {
 		logger.error(
@@ -177,9 +172,6 @@ router.get("/promocoesRecentes", async (req, res) => {
 		`[PROMOÇÕES RECENTES] - /promocoesRecentes - Requisição recebida`
 	);
 	try {
-		logger.info(
-			`[PROMOÇÕES RECENTES] - /promocoesRecentes - Buscando promoções recentes`
-		);
 		const recentPromotions = await Officer.find({ promotedAt: { $ne: null } })
 			.sort({ promotedAt: -1 })
 			.limit(10)
