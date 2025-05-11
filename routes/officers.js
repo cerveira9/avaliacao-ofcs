@@ -7,6 +7,42 @@ const { authenticateToken } = require("../middleware/authMiddleware");
 const logAction = require("../utils/logAction");
 const logger = require("../utils/logger");
 
+/**
+ * @swagger
+ * tags:
+ *   name: Oficiais
+ *   description: Gerenciamento de oficiais
+ */
+
+/**
+ * @swagger
+ * /officers/cadastroOficial:
+ *   post:
+ *     summary: Cadastra um novo oficial
+ *     tags: [Oficiais]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 example: John Doe
+ *               rank:
+ *                 type: string
+ *                 example: Cadete
+ *               startDate:
+ *                 type: string
+ *                 format: date
+ *                 example: 2025-04-01
+ *     responses:
+ *       201:
+ *         description: Oficial cadastrado com sucesso
+ *       500:
+ *         description: Erro ao cadastrar oficial
+ */
 router.post(
 	"/cadastroOficial",
 	authenticateToken,
@@ -42,6 +78,32 @@ router.post(
 	}
 );
 
+/**
+ * @swagger
+ * /officers/mostrarOficiais:
+ *   get:
+ *     summary: Lista todos os oficiais
+ *     tags: [Oficiais]
+ *     responses:
+ *       200:
+ *         description: Lista de oficiais
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   name:
+ *                     type: string
+ *                   rank:
+ *                     type: string
+ *                   startDate:
+ *                     type: string
+ *                     format: date
+ *       500:
+ *         description: Erro ao buscar oficiais
+ */
 router.get("/mostrarOficiais", async (req, res) => {
 	logger.info(`[MOSTRAR OFICIAIS] - /mostrarOficiais - Requisição recebida`);
 	const hierarchy = [
@@ -84,6 +146,32 @@ router.get("/mostrarOficiais", async (req, res) => {
 	}
 });
 
+/**
+ * @swagger
+ * /officers/promocoesRecentes:
+ *   get:
+ *     summary: Lista as promoções recentes
+ *     tags: [Oficiais]
+ *     responses:
+ *       200:
+ *         description: Lista de promoções recentes
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   name:
+ *                     type: string
+ *                   newRank:
+ *                     type: string
+ *                   promotedAt:
+ *                     type: string
+ *                     format: date-time
+ *       500:
+ *         description: Erro ao buscar promoções recentes
+ */
 router.get("/promocoesRecentes", async (req, res) => {
 	logger.info(
 		`[PROMOÇÕES RECENTES] - /promocoesRecentes - Requisição recebida`
@@ -115,6 +203,80 @@ router.get("/promocoesRecentes", async (req, res) => {
 	}
 });
 
+/**
+ * @swagger
+ * /officers/totalOficiais:
+ *   get:
+ *     summary: Retorna o total de oficiais cadastrados
+ *     tags: [Oficiais]
+ *     responses:
+ *       200:
+ *         description: Total de oficiais cadastrados
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 total:
+ *                   type: integer
+ *                   example: 42
+ *       500:
+ *         description: Erro ao buscar total de oficiais
+ */
+router.get("/totalOficiais", async (req, res) => {
+	logger.info(`[TOTAL OFICIAIS] - /totalOficiais - Requisição recebida`);
+	try {
+		logger.info(
+			`[TOTAL OFICIAIS] - /totalOficiais - Calculando total de oficiais`
+		);
+		const total = await Officer.countDocuments();
+		logger.info(
+			`[TOTAL OFICIAIS] - /totalOficiais - Total de oficiais: ${total}`
+		);
+		res.status(200).json({ total });
+	} catch (error) {
+		logger.error(
+			`[TOTAL OFICIAIS][ERROR] - /totalOficiais - Erro ao buscar total de oficiais: ${error.message}`
+		);
+		res.status(500).json({ error: "Erro ao buscar total de oficiais" });
+	}
+});
+
+/**
+ * @swagger
+ * /officers/atualizarOficial/{id}:
+ *   put:
+ *     summary: Atualiza os dados de um oficial
+ *     tags: [Oficiais]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID do oficial
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *               rank:
+ *                 type: string
+ *               startDate:
+ *                 type: string
+ *                 format: date
+ *     responses:
+ *       200:
+ *         description: Oficial atualizado com sucesso
+ *       404:
+ *         description: Oficial não encontrado
+ *       500:
+ *         description: Erro ao atualizar o oficial
+ */
 router.put("/atualizarOficial/:id", authenticateToken, async (req, res) => {
 	const { id } = req.params;
 	const { name, rank, startDate } = req.body;
@@ -179,6 +341,27 @@ router.put("/atualizarOficial/:id", authenticateToken, async (req, res) => {
 	}
 });
 
+/**
+ * @swagger
+ * /officers/deletarOficial/{id}:
+ *   delete:
+ *     summary: Deleta um oficial
+ *     tags: [Oficiais]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID do oficial
+ *     responses:
+ *       200:
+ *         description: Oficial deletado com sucesso
+ *       404:
+ *         description: Oficial não encontrado
+ *       500:
+ *         description: Erro ao deletar o oficial
+ */
 router.delete("/deletarOficial/:id", authenticateToken, async (req, res) => {
 	const { id } = req.params;
 	logger.info(
@@ -219,6 +402,38 @@ router.delete("/deletarOficial/:id", authenticateToken, async (req, res) => {
 	}
 });
 
+/**
+ * @swagger
+ * /officers/promoverOficial/{id}:
+ *   put:
+ *     summary: Promove um oficial para a próxima patente
+ *     tags: [Oficiais]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID do oficial
+ *     responses:
+ *       200:
+ *         description: Promoção realizada com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 newRank:
+ *                   type: string
+ *       404:
+ *         description: Oficial não encontrado
+ *       400:
+ *         description: Oficial já está na patente mais alta
+ *       500:
+ *         description: Erro ao promover oficial
+ */
 router.put("/promoverOficial/:id", authenticateToken, async (req, res) => {
 	const { id } = req.params;
 	logger.info(
@@ -296,23 +511,6 @@ router.put("/promoverOficial/:id", authenticateToken, async (req, res) => {
 	}
 });
 
-router.get("/totalOficiais", async (req, res) => {
-	logger.info(`[TOTAL OFICIAIS] - /totalOficiais - Requisição recebida`);
-	try {
-		logger.info(
-			`[TOTAL OFICIAIS] - /totalOficiais - Calculando total de oficiais`
-		);
-		const total = await Officer.countDocuments();
-		logger.info(
-			`[TOTAL OFICIAIS] - /totalOficiais - Total de oficiais: ${total}`
-		);
-		res.status(200).json({ total });
-	} catch (error) {
-		logger.error(
-			`[TOTAL OFICIAIS][ERROR] - /totalOficiais - Erro ao buscar total de oficiais: ${error.message}`
-		);
-		res.status(500).json({ error: "Erro ao buscar total de oficiais" });
-	}
-});
+
 
 module.exports = router;

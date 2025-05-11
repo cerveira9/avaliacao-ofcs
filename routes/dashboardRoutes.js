@@ -5,7 +5,31 @@ const Officer = require("../models/Officer");
 const { authenticateToken } = require("../middleware/authMiddleware");
 const logger = require("../utils/logger"); // Assuming you have a logger utility
 
-// Total de oficiais, avaliados, avaliações feitas, por habilidade
+/**
+ * @swagger
+ * /analytics:
+ *   get:
+ *     summary: Fetch dashboard analytics
+ *     description: Returns total officers, total evaluations, evaluated officers, and average skills.
+ *     responses:
+ *       200:
+ *         description: Successfully fetched analytics
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 totalOfficers:
+ *                   type: integer
+ *                 totalEvaluations:
+ *                   type: integer
+ *                 evaluatedOfficers:
+ *                   type: integer
+ *                 averageSkills:
+ *                   type: object
+ *       500:
+ *         description: Internal server error
+ */
 router.get("/analytics", async (req, res) => {
 	logger.info("GET /analytics - Fetching dashboard analytics");
 	try {
@@ -46,6 +70,42 @@ router.get("/analytics", async (req, res) => {
 	}
 });
 
+/**
+ * @swagger
+ * /analytics/{officerId}:
+ *   get:
+ *     summary: Fetch analytics for a specific officer
+ *     description: Returns evaluations, ranks, and average skills for a specific officer.
+ *     parameters:
+ *       - in: path
+ *         name: officerId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID of the officer
+ *     responses:
+ *       200:
+ *         description: Successfully fetched officer analytics
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 officerId:
+ *                   type: string
+ *                 totalEvaluations:
+ *                   type: integer
+ *                 ranks:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ *                 evaluationsByRank:
+ *                   type: object
+ *                 averageSkills:
+ *                   type: object
+ *       500:
+ *         description: Internal server error
+ */
 router.get("/analytics/:officerId", authenticateToken, async (req, res) => {
 	const { officerId } = req.params;
 	logger.info(`GET /analytics/${officerId} - Fetching analytics for officer`);
@@ -113,7 +173,35 @@ router.get("/analytics/:officerId", authenticateToken, async (req, res) => {
 	}
 });
 
-// Ranking dos melhores avaliados (com base na média de todas as habilidades)
+/**
+ * @swagger
+ * /ranking:
+ *   get:
+ *     summary: Fetch ranking of top officers
+ *     description: Returns the top 10 officers based on average skill scores.
+ *     responses:
+ *       200:
+ *         description: Successfully fetched ranking
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   officerId:
+ *                     type: string
+ *                   name:
+ *                     type: string
+ *                   rank:
+ *                     type: string
+ *                   avgScore:
+ *                     type: number
+ *                   evaluations:
+ *                     type: integer
+ *       500:
+ *         description: Internal server error
+ */
 router.get("/ranking", async (req, res) => {
 	logger.info("GET /ranking - Fetching ranking of top officers");
 	try {
