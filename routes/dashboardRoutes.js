@@ -3,14 +3,20 @@ const router = express.Router();
 const Evaluation = require("../models/Evaluation");
 const Officer = require("../models/Officer");
 const { authenticateToken } = require("../middleware/authMiddleware");
+const logger = require("../utils/logger"); // Assuming you have a logger utility
 
 // Total de oficiais, avaliados, avaliações feitas, por habilidade
 router.get("/analytics", async (req, res) => {
+	logger.info("GET /analytics - Fetching dashboard analytics");
 	try {
 		const totalOfficers = await Officer.countDocuments();
+		logger.info(`Total officers: ${totalOfficers}`);
+
 		const totalEvaluations = await Evaluation.countDocuments();
+		logger.info(`Total evaluations: ${totalEvaluations}`);
 
 		const evaluatedOfficers = await Evaluation.distinct("officer");
+		logger.info(`Total evaluated officers: ${evaluatedOfficers.length}`);
 
 		const averageSkills = await Evaluation.aggregate([
 			{
@@ -26,6 +32,7 @@ router.get("/analytics", async (req, res) => {
 				},
 			},
 		]);
+		logger.info("Average skills calculated");
 
 		res.json({
 			totalOfficers,
@@ -34,18 +41,21 @@ router.get("/analytics", async (req, res) => {
 			averageSkills: averageSkills[0] || {},
 		});
 	} catch (err) {
-		console.error("[DASHBOARD ANALYTICS]", err.message);
+		logger.error("[DASHBOARD ANALYTICS] Error:", err.message);
 		res.status(500).json({ error: "Erro ao carregar dados do dashboard." });
 	}
 });
 
 router.get("/analytics/:officerId", authenticateToken, async (req, res) => {
 	const { officerId } = req.params;
+	logger.info(`GET /analytics/${officerId} - Fetching analytics for officer`);
 
 	try {
 		const evaluations = await Evaluation.find({ officer: officerId });
+		logger.info(`Found ${evaluations.length} evaluations for officer ${officerId}`);
 
 		if (!evaluations.length) {
+			logger.warn(`No evaluations found for officer ${officerId}`);
 			return res.json({
 				officerId,
 				totalEvaluations: 0,
@@ -67,6 +77,7 @@ router.get("/analytics/:officerId", authenticateToken, async (req, res) => {
 			groupedByRank[rank].push(evaluation.skills);
 			evaluationsByRank[rank]++;
 		}
+		logger.info("Grouped evaluations by rank");
 
 		const average = (data) => {
 			const result = {};
@@ -93,16 +104,18 @@ router.get("/analytics/:officerId", authenticateToken, async (req, res) => {
 		for (const [rank, evals] of Object.entries(groupedByRank)) {
 			response.averageSkills[rank] = average(evals);
 		}
+		logger.info("Calculated average skills for officer");
 
 		res.json(response);
 	} catch (err) {
-		console.error("[DASHBOARD OFICIAL]", err.message);
+		logger.error("[DASHBOARD OFICIAL] Error:", err.message);
 		res.status(500).json({ error: "Erro ao gerar estatísticas do oficial." });
 	}
 });
 
 // Ranking dos melhores avaliados (com base na média de todas as habilidades)
 router.get("/ranking", async (req, res) => {
+	logger.info("GET /ranking - Fetching ranking of top officers");
 	try {
 		const ranking = await Evaluation.aggregate([
 			{
@@ -155,10 +168,11 @@ router.get("/ranking", async (req, res) => {
 				},
 			},
 		]);
+		logger.info("Ranking calculated successfully");
 
 		res.json(ranking);
 	} catch (err) {
-		console.error("[DASHBOARD RANKING]", err.message);
+		logger.error("[DASHBOARD RANKING] Error:", err.message);
 		res.status(500).json({ error: "Erro ao calcular ranking." });
 	}
 });
