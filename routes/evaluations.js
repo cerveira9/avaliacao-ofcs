@@ -95,13 +95,13 @@ router.get("/oficiaisAvaliadosRecentes", async (req, res) => {
 
 router.get("/:officerId", async (req, res) => {
 	const { officerId } = req.params;
-	console.info(`[INFO] - Buscando avaliações para o oficial com ID ${officerId}.`);
+	// console.info(`[INFO] - Buscando avaliações para o oficial com ID ${officerId}.`);
 	try {
 		const evaluations = await Evaluation.find({ officer: officerId })
 			.populate("evaluator", "officerName")
 			.sort({ date: -1 });
 
-		console.info(`[INFO] - Avaliações para o oficial ${officerId} obtidas com sucesso.`);
+		// console.info(`[INFO] - Avaliações para o oficial ${officerId} obtidas com sucesso.`);
 		res.json(evaluations);
 	} catch (err) {
 		console.error(`[ERRO AVALIAÇÃO - /:officerId]`, err.message);
