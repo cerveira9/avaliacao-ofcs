@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 const getCollectionName = require('../utils/collectionName');
 
 const evaluationSchema = new mongoose.Schema({
-	officer: { type: mongoose.Schema.Types.ObjectId, ref: "Officer" },
+	officer: { type: mongoose.Schema.Types.ObjectId, ref: "Officer", index: true },
 	evaluator: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
 	rankAtEvaluation: String,
 	skills: {

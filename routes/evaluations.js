@@ -10,6 +10,35 @@ const {
 } = require("../middleware/authMiddleware");
 const logAction = require("../utils/logAction");
 
+/**
+ * @swagger
+ * /cadastrarAvaliacao:
+ *   post:
+ *     summary: Cadastrar uma nova avaliação
+ *     tags: [Avaliações]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               officerId:
+ *                 type: string
+ *                 description: ID do oficial a ser avaliado
+ *               skills:
+ *                 type: object
+ *                 description: Habilidades avaliadas
+ *     responses:
+ *       201:
+ *         description: Avaliação criada com sucesso
+ *       404:
+ *         description: Oficial não encontrado
+ *       500:
+ *         description: Erro ao salvar avaliação
+ */
 router.post("/cadastrarAvaliacao", authenticateToken, validate(evaluationSchema), async (req, res) => {
 	const { officerId, skills } = req.body;
 
@@ -51,6 +80,18 @@ router.post("/cadastrarAvaliacao", authenticateToken, validate(evaluationSchema)
 	}
 });
 
+/**
+ * @swagger
+ * /oficiaisAvaliadosRecentes:
+ *   get:
+ *     summary: Obter oficiais avaliados recentemente
+ *     tags: [Avaliações]
+ *     responses:
+ *       200:
+ *         description: Lista de oficiais avaliados recentemente
+ *       500:
+ *         description: Erro ao buscar oficiais avaliados
+ */
 router.get("/oficiaisAvaliadosRecentes", async (req, res) => {
 	console.info("[INFO] - Buscando oficiais avaliados recentemente.");
 	try {
@@ -93,15 +134,32 @@ router.get("/oficiaisAvaliadosRecentes", async (req, res) => {
 	}
 });
 
+/**
+ * @swagger
+ * /{officerId}:
+ *   get:
+ *     summary: Obter avaliações de um oficial específico
+ *     tags: [Avaliações]
+ *     parameters:
+ *       - in: path
+ *         name: officerId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID do oficial
+ *     responses:
+ *       200:
+ *         description: Lista de avaliações do oficial
+ *       500:
+ *         description: Erro ao buscar avaliações do oficial
+ */
 router.get("/:officerId", async (req, res) => {
 	const { officerId } = req.params;
-	// console.info(`[INFO] - Buscando avaliações para o oficial com ID ${officerId}.`);
 	try {
 		const evaluations = await Evaluation.find({ officer: officerId })
 			.populate("evaluator", "officerName")
 			.sort({ date: -1 });
 
-		// console.info(`[INFO] - Avaliações para o oficial ${officerId} obtidas com sucesso.`);
 		res.json(evaluations);
 	} catch (err) {
 		console.error(`[ERRO AVALIAÇÃO - /:officerId]`, err.message);
@@ -109,6 +167,29 @@ router.get("/:officerId", async (req, res) => {
 	}
 });
 
+/**
+ * @swagger
+ * /deletarAvaliacao/{id}:
+ *   delete:
+ *     summary: Deletar uma avaliação
+ *     tags: [Avaliações]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID da avaliação
+ *     responses:
+ *       200:
+ *         description: Avaliação deletada com sucesso
+ *       404:
+ *         description: Avaliação não encontrada
+ *       500:
+ *         description: Erro ao deletar avaliação
+ */
 router.delete(
 	"/deletarAvaliacao/:id",
 	authenticateToken,

@@ -25,7 +25,7 @@ const officerSchema = new mongoose.Schema({
 	},
 	startDate: Date,
 	registerDate: { type: Date, default: Date.now },
-	promotedAt: { type: Date, default: null },
+	promotedAt: { type: Date, default: null, index: true },
 }, { timestamps: true });
 
 module.exports = mongoose.model('Officer', officerSchema, getCollectionName('Officer'));
