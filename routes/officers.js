@@ -6,6 +6,7 @@ const officerSchema = require("../schemas/officerSchema");
 const { authenticateToken } = require("../middleware/authMiddleware");
 const logAction = require("../utils/logAction");
 const logger = require("../utils/logger");
+const redis = require("../utils/redisClient");
 
 /**
  * @swagger
@@ -51,27 +52,20 @@ router.post(
 		const { name, rank, startDate } = req.body;
 		logger.info(`[CADASTRO OFICIAL] - /cadastroOficial - Requisição recebida`);
 		try {
-			logger.info(
-				`[CADASTRO OFICIAL] - /cadastroOficial - Iniciando cadastro do oficial ${name}`
-			);
 			const newOfficer = new Officer({ name, rank, startDate });
 			await newOfficer.save();
 
-			await logAction({
-				req,
-				action: "create",
-				user: req.user,
-				target: { entity: "Officer", id: newOfficer._id },
-				metadata: { name, rank },
-			});
+			// Invalida o cache relacionado
+			await redis.del("officers:all");
+			await redis.del("officers:total");
 
 			logger.info(
-				`[CADASTRO OFICIAL] - /cadastroOficial - Oficial ${name} cadastrado com sucesso`
+				`[CADASTRO OFICIAL] - Oficial ${name} cadastrado com sucesso`
 			);
 			res.status(201).json(newOfficer);
 		} catch (error) {
 			logger.error(
-				`[CADASTRO OFICIAL] - /cadastroOficial - Erro ao cadastrar oficial: ${error.message}`
+				`[CADASTRO OFICIAL] - Erro ao cadastrar oficial: ${error.message}`
 			);
 			res.status(500).json({ error: "Erro ao cadastrar oficial." });
 		}
@@ -112,8 +106,8 @@ router.get("/mostrarOficiais", async (req, res) => {
 		"Senior Officer",
 		"Deputy",
 		"Senior Deputy",
-		"Undersheriff / Deputy Chief",
-		"Sheriff / Chief of Police",
+		"Undersheriff",
+		"Sheriff",
 		"Forest Ranger",
 		"Tracker Ranger",
 		"Senior Ranger",
@@ -123,19 +117,34 @@ router.get("/mostrarOficiais", async (req, res) => {
 		"Marshal",
 	];
 
+	const cacheKey = "officers:all"; // Chave única para armazenar os dados no Redis
+
 	try {
+		// Verifica se os dados estão no cache
+		const cachedData = await redis.get(cacheKey);
+		if (cachedData) {
+			logger.info("[MOSTRAR OFICIAIS] - Dados retornados do cache");
+			return res.status(200).json(JSON.parse(cachedData));
+		}
+
+		// Consulta o banco de dados se os dados não estiverem no cache
 		const officers = await Officer.find();
 
+		// Ordena os oficiais pela hierarquia
 		const ordered = officers.sort((a, b) => {
 			const rankA = hierarchy.indexOf(a.rank);
 			const rankB = hierarchy.indexOf(b.rank);
 			return rankA - rankB;
 		});
 
+		// Armazena os dados no cache com um tempo de expiração (TTL)
+		await redis.set(cacheKey, JSON.stringify(ordered), "EX", 60 * 5); // Expira em 5 minutos
+
+		logger.info("[MOSTRAR OFICIAIS] - Dados armazenados no cache");
 		res.status(200).json(ordered);
 	} catch (error) {
 		logger.error(
-			`[MOSTRAR OFICIAIS] - /mostrarOficiais - Erro ao buscar oficiais: ${error.message}`
+			`[MOSTRAR OFICIAIS] - Erro ao buscar oficiais: ${error.message}`
 		);
 		res.status(500).json({ error: "Erro ao buscar oficiais" });
 	}
@@ -168,10 +177,17 @@ router.get("/mostrarOficiais", async (req, res) => {
  *         description: Erro ao buscar promoções recentes
  */
 router.get("/promocoesRecentes", async (req, res) => {
-	logger.info(
-		`[PROMOÇÕES RECENTES] - /promocoesRecentes - Requisição recebida`
-	);
+	const cacheKey = "officers:recentPromotions"; // Chave única para o cache
+
 	try {
+		// Verifica se os dados estão no cache
+		const cachedData = await redis.get(cacheKey);
+		if (cachedData) {
+			logger.info("[PROMOÇÕES RECENTES] - Dados retornados do cache");
+			return res.status(200).json(JSON.parse(cachedData));
+		}
+
+		// Consulta o banco de dados se os dados não estiverem no cache
 		const recentPromotions = await Officer.find({ promotedAt: { $ne: null } })
 			.sort({ promotedAt: -1 })
 			.limit(10)
@@ -183,13 +199,19 @@ router.get("/promocoesRecentes", async (req, res) => {
 			promotedAt: officer.promotedAt,
 		}));
 
-		logger.info(
-			`[PROMOÇÕES RECENTES] - /promocoesRecentes - ${formattedPromotions.length} promoções recentes encontradas`
-		);
+		// Armazena os dados no cache com um tempo de expiração (TTL)
+		await redis.set(
+			cacheKey,
+			JSON.stringify(formattedPromotions),
+			"EX",
+			60 * 5
+		); // Expira em 5 minutos
+
+		logger.info("[PROMOÇÕES RECENTES] - Dados armazenados no cache");
 		res.status(200).json(formattedPromotions);
 	} catch (error) {
 		logger.error(
-			`[PROMOÇÕES RECENTES] - /promocoesRecentes - Erro ao buscar promoções recentes: ${error.message}`
+			`[PROMOÇÕES RECENTES] - Erro ao buscar promoções recentes: ${error.message}`
 		);
 		res.status(500).json({ error: "Erro ao buscar promoções recentes" });
 	}
@@ -216,19 +238,27 @@ router.get("/promocoesRecentes", async (req, res) => {
  *         description: Erro ao buscar total de oficiais
  */
 router.get("/totalOficiais", async (req, res) => {
-	logger.info(`[TOTAL OFICIAIS] - /totalOficiais - Requisição recebida`);
+	const cacheKey = "officers:total"; // Chave única para o cache
+
 	try {
-		logger.info(
-			`[TOTAL OFICIAIS] - /totalOficiais - Calculando total de oficiais`
-		);
+		// Verifica se os dados estão no cache
+		const cachedData = await redis.get(cacheKey);
+		if (cachedData) {
+			logger.info("[TOTAL OFICIAIS] - Dados retornados do cache");
+			return res.status(200).json(JSON.parse(cachedData));
+		}
+
+		// Consulta o banco de dados se os dados não estiverem no cache
 		const total = await Officer.countDocuments();
-		logger.info(
-			`[TOTAL OFICIAIS] - /totalOficiais - Total de oficiais: ${total}`
-		);
+
+		// Armazena os dados no cache com um tempo de expiração (TTL)
+		await redis.set(cacheKey, JSON.stringify({ total }), "EX", 60 * 5); // Expira em 5 minutos
+
+		logger.info("[TOTAL OFICIAIS] - Dados armazenados no cache");
 		res.status(200).json({ total });
 	} catch (error) {
 		logger.error(
-			`[TOTAL OFICIAIS][ERROR] - /totalOficiais - Erro ao buscar total de oficiais: ${error.message}`
+			`[TOTAL OFICIAIS][ERROR] - Erro ao buscar total de oficiais: ${error.message}`
 		);
 		res.status(500).json({ error: "Erro ao buscar total de oficiais" });
 	}
@@ -273,18 +303,14 @@ router.put("/atualizarOficial/:id", authenticateToken, async (req, res) => {
 	const { id } = req.params;
 	const { name, rank, startDate } = req.body;
 	logger.info(
-		`[ATUALIZAR OFICIAL] - /atualizarOficial/:id - Requisição recebida para ID: ${id}`
+		`[ATUALIZAR OFICIAL] - /:id - Requisição recebida para ID: ${id}`
 	);
 
 	try {
-		logger.info(
-			`[ATUALIZAR OFICIAL] - /atualizarOficial/:id - Buscando oficial`
-		);
+		logger.info(`[ATUALIZAR OFICIAL] - /:id - Buscando oficial`);
 		const original = await Officer.findById(id);
 		if (!original) {
-			logger.error(
-				`[ATUALIZAR OFICIAL][404] - /atualizarOficial/:id - Oficial não encontrado`
-			);
+			logger.error(`[ATUALIZAR OFICIAL][404] - /:id - Oficial não encontrado`);
 			return res.status(404).json({ error: "Oficial não encontrado" });
 		}
 
@@ -303,9 +329,7 @@ router.put("/atualizarOficial/:id", authenticateToken, async (req, res) => {
 			};
 		}
 
-		logger.info(
-			`[ATUALIZAR OFICIAL] - /atualizarOficial/:id - Atualizando oficial`
-		);
+		logger.info(`[ATUALIZAR OFICIAL] - /:id - Atualizando oficial`);
 		const updatedOfficer = await Officer.findByIdAndUpdate(
 			id,
 			{ name, rank, startDate },
@@ -321,13 +345,17 @@ router.put("/atualizarOficial/:id", authenticateToken, async (req, res) => {
 				metadata: { changes, name },
 			});
 		}
-		logger.info(
-			`[ATUALIZAR OFICIAL] - /atualizarOficial/:id - Oficial atualizado com sucesso`
-		);
+
+		// Invalida o cache relacionado
+		await redis.del("officers:all"); // Invalida o cache da listagem de oficiais
+		await redis.del("officers:total"); // Invalida o cache do total de oficiais
+		await redis.del("officers:recentPromotions"); // Invalida o cache de promoções recentes
+
+		logger.info(`[ATUALIZAR OFICIAL] - /:id - Oficial atualizado com sucesso`);
 		res.status(200).json(updatedOfficer);
 	} catch (error) {
 		logger.error(
-			`[ATUALIZAR OFICIAL][ERROR] - /atualizarOficial/:id - Erro ao atualizar oficial: ${error.message}`
+			`[ATUALIZAR OFICIAL][ERROR] - /:id - Erro ao atualizar oficial: ${error.message}`
 		);
 		res.status(500).json({ error: "Erro ao atualizar o oficial" });
 	}
@@ -356,153 +384,109 @@ router.put("/atualizarOficial/:id", authenticateToken, async (req, res) => {
  */
 router.delete("/deletarOficial/:id", authenticateToken, async (req, res) => {
 	const { id } = req.params;
-	logger.info(
-		`[DELETAR OFICIAL] - /deletarOficial/:id - Requisição recebida para ID: ${id}`
-	);
+	logger.info(`[DELETAR OFICIAL] - Requisição recebida para ID: ${id}`);
 
 	try {
-		logger.info(`[DELETAR OFICIAL] - /deletarOficial/:id - Buscando oficial`);
 		const deletedOfficer = await Officer.findByIdAndDelete(id);
 
 		if (!deletedOfficer) {
-			logger.error(
-				`[DELETAR OFICIAL][404] - /deletarOficial/:id - Oficial não encontrado`
-			);
 			return res.status(404).json({ error: "Oficial não encontrado" });
 		}
 
-		await logAction({
-			req,
-			action: "delete",
-			user: req.user,
-			target: { entity: "Officer", id },
-			metadata: {
-				name: deletedOfficer.name,
-				rank: deletedOfficer.rank,
-				startDate: deletedOfficer.startDate,
-			},
-		});
-		logger.info(
-			`[DELETAR OFICIAL] - /deletarOficial/:id - Oficial deletado com sucesso`
-		);
+		// Invalida o cache relacionado
+		await redis.del("officers:all");
+		await redis.del("officers:total");
+
+		logger.info(`[DELETAR OFICIAL] - Oficial deletado com sucesso`);
 		res.status(200).json({ message: "Oficial deletado com sucesso" });
 	} catch (error) {
 		logger.error(
-			`[DELETAR OFICIAL][ERROR] - /deletarOficial/:id - Erro ao deletar oficial: ${error.message}`
+			`[DELETAR OFICIAL][ERROR] - Erro ao deletar oficial: ${error.message}`
 		);
 		res.status(500).json({ error: "Erro ao deletar o oficial" });
 	}
 });
 
-/**
- * @swagger
- * /officers/promoverOficial/{id}:
- *   put:
- *     summary: Promove um oficial para a próxima patente
- *     tags: [Oficiais]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *         description: ID do oficial
- *     responses:
- *       200:
- *         description: Promoção realizada com sucesso
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                 newRank:
- *                   type: string
- *       404:
- *         description: Oficial não encontrado
- *       400:
- *         description: Oficial já está na patente mais alta
- *       500:
- *         description: Erro ao promover oficial
- */
 router.put("/promoverOficial/:id", authenticateToken, async (req, res) => {
-	const { id } = req.params;
-	logger.info(
-		`[PROMOVER OFICIAL] - /promoverOficial/:id - Requisição recebida para ID: ${id}`
-	);
+    const { id } = req.params;
+    logger.info(
+        `[PROMOVER OFICIAL] - /promoverOficial/:id - Requisição recebida para ID: ${id}`
+    );
 
-	const hierarchy = [
-		"Cadete",
-		"Patrol Officer",
-		"Police Officer",
-		"Senior Officer",
-		"Deputy",
-		"Senior Deputy",
-		"Undersheriff / Deputy Chief",
-		"Sheriff / Chief of Police",
-		"Forest Ranger",
-		"Tracker Ranger",
-		"Senior Ranger",
-		"Captain Ranger",
-		"Commissioner",
-		"Deputy Marshal",
-		"Marshal",
-	];
+    const hierarchy = [
+        "Cadete",
+        "Patrol Officer",
+        "Police Officer",
+        "Senior Officer",
+        "Deputy",
+        "Senior Deputy",
+        "Undersheriff / Deputy Chief",
+        "Sheriff / Chief of Police",
+        "Forest Ranger",
+        "Tracker Ranger",
+        "Senior Ranger",
+        "Captain Ranger",
+        "Commissioner",
+        "Deputy Marshal",
+        "Marshal",
+    ];
 
-	try {
-		logger.info(`[PROMOVER OFICIAL] - /promoverOficial/:id - Buscando oficial`);
-		const officer = await Officer.findById(id);
-		if (!officer) {
-			logger.error(
-				`[PROMOVER OFICIAL][404] - /promoverOficial/:id - Oficial não encontrado`
-			);
-			return res.status(404).json({ error: "Oficial não encontrado" });
-		}
+    try {
+        logger.info(`[PROMOVER OFICIAL] - /promoverOficial/:id - Buscando oficial`);
+        const officer = await Officer.findById(id);
+        if (!officer) {
+            logger.error(
+                `[PROMOVER OFICIAL][404] - /promoverOficial/:id - Oficial não encontrado`
+            );
+            return res.status(404).json({ error: "Oficial não encontrado" });
+        }
 
-		const currentRankIndex = hierarchy.indexOf(officer.rank);
-		if (currentRankIndex === -1 || currentRankIndex === hierarchy.length - 1) {
-			logger.warn(
-				`[PROMOVER OFICIAL][400] - /promoverOficial/:id - Oficial já está na patente mais alta`
-			);
-			return res
-				.status(400)
-				.json({ error: "Oficial já está na patente mais alta" });
-		}
+        const currentRankIndex = hierarchy.indexOf(officer.rank);
+        if (currentRankIndex === -1 || currentRankIndex === hierarchy.length - 1) {
+            logger.warn(
+                `[PROMOVER OFICIAL][400] - /promoverOficial/:id - Oficial já está na patente mais alta`
+            );
+            return res
+                .status(400)
+                .json({ error: "Oficial já está na patente mais alta" });
+        }
 
-		const oldRank = officer.rank;
-		officer.rank = hierarchy[currentRankIndex + 1];
-		officer.promotedAt = new Date();
-		await officer.save();
+        const oldRank = officer.rank;
+        officer.rank = hierarchy[currentRankIndex + 1];
+        officer.promotedAt = new Date();
+        await officer.save();
 
-		logger.info(
-			`[PROMOVER OFICIAL] - /promoverOficial/:id - Oficial promovido de ${oldRank} para ${officer.rank}`
-		);
-		await logAction({
-			req,
-			action: "promote",
-			user: req.user,
-			target: { entity: "Officer", id: officer._id },
-			metadata: {
-				oldRank,
-				newRank: officer.rank,
-				name: officer.name,
-				promotedAt: officer.promotedAt,
-			},
-		});
+        logger.info(
+            `[PROMOVER OFICIAL] - /promoverOficial/:id - Oficial promovido de ${oldRank} para ${officer.rank}`
+        );
+        await logAction({
+            req,
+            action: "promote",
+            user: req.user,
+            target: { entity: "Officer", id: officer._id },
+            metadata: {
+                oldRank,
+                newRank: officer.rank,
+                name: officer.name,
+                promotedAt: officer.promotedAt,
+            },
+        });
 
-		res.json({
-			message: "Promoção realizada com sucesso",
-			newRank: officer.rank,
-		});
-	} catch (error) {
-		logger.error(
-			`[PROMOVER OFICIAL][ERROR] - /promoverOficial/:id - Erro ao promover oficial: ${error.message}`
-		);
-		res.status(500).json({ error: "Erro ao promover oficial" });
-	}
+        // Invalida o cache relacionado
+        await redis.del("officers:all"); // Invalida o cache da listagem de oficiais
+        await redis.del("officers:total"); // Invalida o cache do total de oficiais
+        await redis.del("officers:recentPromotions"); // Invalida o cache de promoções recentes
+
+        res.json({
+            message: "Promoção realizada com sucesso",
+            newRank: officer.rank,
+        });
+    } catch (error) {
+        logger.error(
+            `[PROMOVER OFICIAL][ERROR] - /promoverOficial/:id - Erro ao promover oficial: ${error.message}`
+        );
+        res.status(500).json({ error: "Erro ao promover oficial" });
+    }
 });
-
-
 
 module.exports = router;
